@@ -1,0 +1,5 @@
+{
+  "backend": "telegram",
+  "bot_token": "YOUR_BOT_TOKEN",
+  "api_url": "https://api.telegram.org/bot"
+}

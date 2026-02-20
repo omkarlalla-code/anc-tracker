@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ANC Tracker Dashboard</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Health Tracker Dashboard</h1>
+    </header>
+
+    <main>
+        <section id="upcoming">
+            <h2>Upcoming Visits (Next 7 Days)</h2>
+            <div id="upcoming-list"></div>
+        </section>
+
+        <section id="defaulters">
+            <h2>Missed Visits</h2>
+            <div id="defaulters-list"></div>
+        </section>
+
+        <section id="stats">
+            <h2>Statistics</h2>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <h3>Active Patients</h3>
+                    <p id="stat-active">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Visits This Week</h3>
+                    <p id="stat-week">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Completion Rate</h3>
+                    <p id="stat-completion">-</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="api.js"></script>
+</body>
+</html>

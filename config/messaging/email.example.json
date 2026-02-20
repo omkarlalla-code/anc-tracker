@@ -1,0 +1,8 @@
+{
+  "backend": "email",
+  "smtp_server": "smtp.gmail.com",
+  "smtp_port": 587,
+  "username": "your_email@gmail.com",
+  "password": "your_app_password",
+  "from_address": "noreply@yourproject.org"
+}

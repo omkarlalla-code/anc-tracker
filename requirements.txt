@@ -1,0 +1,4 @@
+requests>=2.31.0
+cryptography>=41.0.0
+pysodium>=0.7.12
+python-telegram-bot>=20.0  # Optional

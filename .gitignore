@@ -1,0 +1,12 @@
+*.db
+*.db-journal
+config/messaging/*.json
+!config/messaging/*.example.json
+config/hosting/*.conf
+!config/hosting/*.example.conf
+*.o
+bin/
+logs/
+__pycache__/
+venv/
+.env
