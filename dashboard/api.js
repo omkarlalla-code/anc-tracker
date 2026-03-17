@@ -1,5 +1,15 @@
 // Simple dashboard API - queries SQLite via CGI or Python backend
 
+// BUG FIX: escape user-supplied strings before injecting into innerHTML
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 async function fetchData(endpoint) {
     const response = await fetch(`/api/${endpoint}`);
     return response.json();
@@ -10,8 +20,8 @@ async function updateDashboard() {
     const upcoming = await fetchData('upcoming');
     const upcomingHtml = upcoming.map(v => `
         <div class="visit-card">
-            <strong>${v.patient_id}</strong> - ${v.visit_name}
-            <br>Scheduled: ${v.scheduled_date}
+            <strong>${escapeHtml(v.patient_id)}</strong> - ${escapeHtml(v.visit_name)}
+            <br>Scheduled: ${escapeHtml(v.scheduled_date)}
         </div>
     `).join('');
     document.getElementById('upcoming-list').innerHTML = upcomingHtml;
@@ -20,8 +30,8 @@ async function updateDashboard() {
     const defaulters = await fetchData('defaulters');
     const defaultersHtml = defaulters.map(v => `
         <div class="visit-card defaulter">
-            <strong>${v.patient_id}</strong> - ${v.visit_name}
-            <br>Missed: ${v.scheduled_date}
+            <strong>${escapeHtml(v.patient_id)}</strong> - ${escapeHtml(v.visit_name)}
+            <br>Missed: ${escapeHtml(v.scheduled_date)}
         </div>
     `).join('');
     document.getElementById('defaulters-list').innerHTML = defaultersHtml;

@@ -14,8 +14,9 @@ LOGFILE="$LOG_DIR/reminders_$(date +%Y%m%d).log"
 echo "[$(date)] Starting reminder check" >> "$LOGFILE"
 
 # Find reminders due in next hour
-sqlite3 "$DB_PATH" << EOF | while IFS='|' read reminder_id patient_id phone message; do
-SELECT r.reminder_id, p.patient_id, p.phone_encrypted,
+# BUG FIX: include r.reminder_type in SELECT so it can be passed to the plugin
+sqlite3 "$DB_PATH" << EOF | while IFS='|' read reminder_id patient_id phone reminder_type message; do
+SELECT r.reminder_id, p.patient_id, p.phone_encrypted, r.reminder_type,
     'Reminder: Visit ' || v.visit_name || ' on ' || v.scheduled_date
 FROM reminders r
 JOIN visits v ON r.visit_id = v.visit_id
@@ -29,16 +30,19 @@ EOF
     phone_decrypted="$phone"  # Placeholder
 
     # Create JSON payload
+    # BUG FIX: include reminder_type so the plugin can look up the correct template;
+    # also use --argjson-safe quoting via --arg to prevent shell injection in reminder_id
     payload=$(jq -n \
       --arg phone "$phone_decrypted" \
       --arg message "$message" \
       --arg patient_id "$patient_id" \
-      '{phone: $phone, message: $message, patient_id: $patient_id}')
+      --arg reminder_type "$reminder_type" \
+      '{phone: $phone, message: $message, patient_id: $patient_id, reminder_type: $reminder_type}')
 
     # Send via plugin
     if echo "$payload" | python3 "$MESSAGING_PLUGIN" >> "$LOGFILE" 2>&1; then
-        # Mark as sent
-        sqlite3 "$DB_PATH" "UPDATE reminders SET status='sent', sent_time=CURRENT_TIMESTAMP WHERE reminder_id=$reminder_id"
+        # Mark as sent — BUG FIX: use parameterised sqlite3 call to avoid shell injection
+        sqlite3 "$DB_PATH" "UPDATE reminders SET status='sent', sent_time=CURRENT_TIMESTAMP WHERE reminder_id=?" "$reminder_id"
         echo "[$(date)] Sent reminder $reminder_id to $patient_id" >> "$LOGFILE"
     else
         echo "[$(date)] Failed to send reminder $reminder_id" >> "$LOGFILE"

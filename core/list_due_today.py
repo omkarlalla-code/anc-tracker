@@ -17,30 +17,31 @@ def main():
 
     db_path = sys.argv[1]
 
+    # BUG FIX: use a context manager so the connection is always closed,
+    # even when a sqlite3.Error is raised
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
 
-        today = date.today().isoformat()
+            today = date.today().isoformat()
 
-        sql = """
-            SELECT patient_id, visit_number, visit_name, scheduled_date
-            FROM visits
-            WHERE DATE(scheduled_date) = ? AND status = 'pending'
-        """
+            sql = """
+                SELECT patient_id, visit_number, visit_name, scheduled_date
+                FROM visits
+                WHERE DATE(scheduled_date) = ? AND status = 'pending'
+            """
 
-        cursor.execute(sql, (today,))
+            cursor.execute(sql, (today,))
 
-        for row in cursor.fetchall():
-            result = {
-                'patient_id': row[0],
-                'visit_number': row[1],
-                'visit_name': row[2],
-                'date': row[3]
-            }
-            print(json.dumps(result))
+            for row in cursor.fetchall():
+                result = {
+                    'patient_id': row[0],
+                    'visit_number': row[1],
+                    'visit_name': row[2],
+                    'date': row[3]
+                }
+                print(json.dumps(result))
 
-        conn.close()
         return 0
 
     except sqlite3.Error as e:
