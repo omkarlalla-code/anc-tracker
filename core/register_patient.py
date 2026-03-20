@@ -51,7 +51,7 @@ def generate_visits(lmp: str, schedule_config: str) -> list:
     )
     if result.returncode != 0:
         raise RuntimeError(f"calc_visits.py failed: {result.stderr}")
-    return json.loads(result.stdout)
+    return json.loads(result.stdout)["visits"]
 
 
 def insert_patient(conn, patient_id, name_enc, phone_enc, age, village, lmp):
