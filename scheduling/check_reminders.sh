@@ -4,6 +4,10 @@
 
 set -e
 
+# Load encryption key and any other env vars from .env if present
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[ -f "$SCRIPT_DIR/.env" ] && source "$SCRIPT_DIR/.env"
+
 DB_PATH="${DB_PATH:-$HOME/anc/data/tracker.db}"
 MESSAGING_PLUGIN="${MESSAGING_PLUGIN:-plugins/messaging/whatsapp_send.py}"
 LOG_DIR="${LOG_DIR:-$HOME/anc/logs}"
@@ -13,8 +17,6 @@ LOGFILE="$LOG_DIR/reminders_$(date +%Y%m%d).log"
 
 echo "[$(date)] Starting reminder check" >> "$LOGFILE"
 
-# Find reminders due in next hour
-# BUG FIX: include r.reminder_type in SELECT so it can be passed to the plugin
 sqlite3 "$DB_PATH" << EOF | while IFS='|' read reminder_id patient_id phone reminder_type message; do
 SELECT r.reminder_id, p.patient_id, p.phone_encrypted, r.reminder_type,
     'Reminder: Visit ' || v.visit_name || ' on ' || v.scheduled_date
@@ -26,12 +28,14 @@ WHERE r.status = 'pending'
   AND r.scheduled_time > datetime('now', '-1 hour');
 EOF
 
-    # Decrypt phone (TODO: implement decryption)
-    phone_decrypted="$phone"  # Placeholder
+    # Decrypt phone number using pysodium secretbox
+    phone_decrypted=$(python3 "$SCRIPT_DIR/core/crypto.py" decrypt "$phone" 2>> "$LOGFILE")
+    if [ $? -ne 0 ] || [ -z "$phone_decrypted" ]; then
+        echo "[$(date)] Failed to decrypt phone for reminder $reminder_id — skipping" >> "$LOGFILE"
+        sqlite3 "$DB_PATH" "UPDATE reminders SET status='failed', error_message='decryption_failed' WHERE reminder_id=?" "$reminder_id"
+        continue
+    fi
 
-    # Create JSON payload
-    # BUG FIX: include reminder_type so the plugin can look up the correct template;
-    # also use --argjson-safe quoting via --arg to prevent shell injection in reminder_id
     payload=$(jq -n \
       --arg phone "$phone_decrypted" \
       --arg message "$message" \
@@ -39,13 +43,12 @@ EOF
       --arg reminder_type "$reminder_type" \
       '{phone: $phone, message: $message, patient_id: $patient_id, reminder_type: $reminder_type}')
 
-    # Send via plugin
     if echo "$payload" | python3 "$MESSAGING_PLUGIN" >> "$LOGFILE" 2>&1; then
-        # Mark as sent — BUG FIX: use parameterised sqlite3 call to avoid shell injection
         sqlite3 "$DB_PATH" "UPDATE reminders SET status='sent', sent_time=CURRENT_TIMESTAMP WHERE reminder_id=?" "$reminder_id"
         echo "[$(date)] Sent reminder $reminder_id to $patient_id" >> "$LOGFILE"
     else
         echo "[$(date)] Failed to send reminder $reminder_id" >> "$LOGFILE"
+        sqlite3 "$DB_PATH" "UPDATE reminders SET status='failed', error_message='plugin_error' WHERE reminder_id=?" "$reminder_id"
     fi
 done
 
